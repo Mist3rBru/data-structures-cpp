@@ -4,7 +4,7 @@
 #include <iostream>
 
 using namespace std;
-int MAX_GRAPH_SIZE = 20;
+int MAX_GRAPH_SIZE = 100;
 
 typedef struct Vertice
 {
@@ -15,7 +15,7 @@ typedef struct Vertice
 
 typedef struct Aresta
 {
-	char peso;
+	int peso;
 	Vertice *vertice;
 } Aresta;
 
@@ -25,19 +25,11 @@ typedef struct Grafo
 	Vertice **vertice;
 } Grafo;
 
-typedef struct Historico
-{
-	int nFilas;
-	Fila **fila;
-	int nVertices;
-	Vertice **vertice;
-} Historico;
-
 typedef struct Rota
 {
-	char peso;
-	int de;
-	int para;
+	int peso;
+	Vertice *de;
+	Vertice *para;
 } Rota;
 
 typedef struct Fila
@@ -48,6 +40,14 @@ typedef struct Fila
 	Rota **rota;
 } Fila;
 
+typedef struct Historico
+{
+	Vertice *origem;
+	Vertice *destino;
+	int nFilas;
+	Fila **fila;
+} Historico;
+
 // Arquivo
 void lerArquivo(Grafo *grafo);
 
@@ -56,18 +56,38 @@ Vertice *criaVertice(int id);
 Vertice *encontraVertice(Grafo *grafo, int id);
 Vertice *encontraOuCriaVertice(Grafo *grafo, int id);
 void insereVertice(Grafo *grafo, int id, string arestas);
+void excluiVertice(Vertice *vertice);
 
 // Aresta
-Aresta *criaAresta(char peso, Vertice *vertice);
-void insereAresta(Vertice *origem, Vertice *destino, char peso);
+Aresta *criaAresta(int peso, Vertice *vertice);
+void insereAresta(Vertice *origem, Vertice *destino, int peso);
 
 // Grafo
 Grafo *criaGrafo();
 void insereGrafo(Grafo *grafo, Vertice *vertice);
+void excluiGrafo(Grafo *grafo);
 
 // Rota
-Rota *criaRota(Vertice *origem, Vertice *destino, int peso);
-// void exibirRota(Rota *rota);
+Rota *criaRota(Vertice *origem, Aresta *aresta);
+
+// Fila
+Fila *criaFila();
+Fila *criaFilaHerdeira(Fila *pai);
+void insereFila(Fila *fila, Rota *rota);
+void percorreFila(Fila *fila, Vertice *origem, int nAresta, Historico *historico);
+Fila *melhorFila(Historico *historico);
+void excluiFila(Fila *fila);
+
+// Historico
+Historico *criaHistorico(Vertice *origem, Vertice *destino);
+void insereFilaHistorico(Historico *historico, Fila *fila);
+void excluiHistorico(Historico *historico);
+
+// Utils
+int charParaInt(char c);
+
+// Servicos
+void encontraMenorCaminho(Grafo *grafo, int inicio, int fim);
 
 // Menu
 void exibirMenu(Grafo *grafo);
@@ -77,15 +97,15 @@ int main(void)
 	Grafo *grafo = criaGrafo();
 
 	lerArquivo(grafo);
-
 	exibirMenu(grafo);
 
+	excluiGrafo(grafo);
 	return 0;
 }
 
 void exibirMenu(Grafo *grafo)
 {
-	int inicio, fim, option;
+	int inicio, fim, opcao;
 	do
 	{
 		printf("\nInsira o vertice de origem: ");
@@ -93,11 +113,13 @@ void exibirMenu(Grafo *grafo)
 		printf("Insira o vertice de destino: ");
 		scanf("%i", &fim);
 
+		encontraMenorCaminho(grafo, inicio, fim);
+
 		printf("\nInsira '1' para continuar;\n");
 		printf("Insira '0' para encerrar;\n");
 		printf("Digite uma opcao: ");
-		scanf("%i", &option);
-	} while (option != 0);
+		scanf("%i", &opcao);
+	} while (opcao != 0);
 }
 
 // Arquivo
@@ -138,6 +160,14 @@ Vertice *criaVertice(int id)
 	return vertice;
 }
 
+void excluiVertice(Vertice *vertice)
+{
+	for (int i = 0; i < vertice->nArestas; i++)
+		free(vertice->aresta[i]);
+
+	free(vertice);
+}
+
 // Vertice
 Vertice *encontraVertice(Grafo *grafo, int id)
 {
@@ -171,26 +201,25 @@ void insereVertice(Grafo *grafo, int id, string arestas)
 			int id = i / 2;
 			Vertice *fim = encontraOuCriaVertice(grafo, id);
 			insereGrafo(grafo, fim);
-			insereAresta(vertice, fim, peso);
+			insereAresta(vertice, fim, charParaInt(peso));
 		}
 		peso = arestas[++i];
 	}
 }
 
 // Aresta
-Aresta *criaAresta(char peso, Vertice *vertice)
+Aresta *criaAresta(int peso, Vertice *vertice)
 {
 	Aresta *aresta = (Aresta *)malloc(sizeof(Aresta));
 	aresta->peso = peso;
 	aresta->vertice = vertice;
-	vertice->nArestas++;
 	return aresta;
 }
 
-void insereAresta(Vertice *origem, Vertice *destino, char peso)
+void insereAresta(Vertice *origem, Vertice *destino, int peso)
 {
 	Aresta *aresta = criaAresta(peso, destino);
-	if (origem->id != destino->id && peso != '0')
+	if (origem->id != destino->id && peso > 0)
 	{
 		origem->aresta[origem->nArestas] = aresta;
 		origem->nArestas++;
@@ -223,13 +252,21 @@ void insereGrafo(Grafo *grafo, Vertice *vertice)
 	}
 }
 
+void excluiGrafo(Grafo *grafo)
+{
+	for (int i = 0; i < grafo->tamanho; i++)
+		excluiVertice(grafo->vertice[i]);
+
+	free(grafo);
+}
+
 // Rota
-Rota *criaRota(Vertice *origem, Vertice *destino, int peso)
+Rota *criaRota(Vertice *origem, Aresta *aresta)
 {
 	Rota *rota = (Rota *)malloc(sizeof(Rota));
-	rota->peso = peso;
-	rota->de = origem->id;
-	rota->para = destino->id;
+	rota->peso = aresta->peso;
+	rota->de = origem;
+	rota->para = aresta->vertice;
 	return rota;
 }
 
@@ -241,87 +278,142 @@ Fila *criaFila()
 	fila->nRotas = 0;
 	fila->rota = (Rota **)malloc(MAX_GRAPH_SIZE * sizeof(Rota));
 	fila->peso = 0;
+	return fila;
 }
 
-void herdaFila(Fila *pai, Fila *filha)
+Fila *criaFilaHerdeira(Fila *pai)
 {
+	Fila *filha = criaFila();
+	filha->chegou = pai->chegou;
 	filha->peso = pai->peso;
 	filha->nRotas = pai->nRotas;
-	filha->rota = pai->rota;
+
+	for (int i = 0; i < pai->nRotas; i++)
+		filha->rota[i] = pai->rota[i];
+	
+	// filha->rota = pai->rota;
+
+	return filha;
 }
 
 void insereFila(Fila *fila, Rota *rota)
 {
+	fila->peso += rota->peso;
 	fila->rota[fila->nRotas] = rota;
 	fila->nRotas++;
-	fila->peso += rota->peso;
+}
+
+void percorreFila(Fila *fila, Vertice *origem, int nAresta, Historico *historico)
+{
+	if (origem->id == historico->destino->id || fila->chegou == true)
+	{
+		fila->chegou = true;
+		return;
+	}
+
+	if (origem->nArestas > nAresta + 1)
+	{
+		Fila *novaFila = criaFilaHerdeira(fila);
+		insereFilaHistorico(historico, novaFila);
+		percorreFila(novaFila, origem, nAresta + 1, historico);
+	}
+
+	if (origem->nArestas >= nAresta + 1)
+	{
+		Aresta *aresta = origem->aresta[nAresta];
+		if (aresta->vertice->id != historico->origem->id)
+		{
+			Rota *rota = criaRota(origem, aresta);
+			insereFila(fila, rota);
+			percorreFila(fila, rota->para, 0, historico);
+		}
+	}
+}
+
+Fila *melhorFila(Historico *historico)
+{
+	Fila *melhor = historico->fila[0];
+
+	for (int i = 0; i < historico->nFilas; i++)
+		if (historico->fila[i]->chegou == true)
+			if (melhor->chegou == false || historico->fila[i]->peso < melhor->peso)
+				melhor = historico->fila[i];
+
+	if (melhor->chegou == false)
+		return NULL;
+
+	return melhor;
+}
+
+void excluiFila(Fila *fila)
+{
+	// for (int i = 0; i < fila->nRotas; i++)
+	// 	free(fila->rota[i]);
+
+	free(fila);
 }
 
 // Historico
-Historico *criaHistorico()
+Historico *criaHistorico(Vertice *origem, Vertice *destino)
 {
 	Historico *historico = (Historico *)malloc(sizeof(Historico));
 	historico->nFilas = 0;
 	historico->fila = (Fila **)malloc(MAX_GRAPH_SIZE * sizeof(Fila));
-	historico->nVertices = 0;
-	historico->vertice = (Vertice **)malloc(MAX_GRAPH_SIZE * sizeof(Vertice));
+	historico->origem = origem;
+	historico->destino = destino;
+	return historico;
 }
 
-void insereHistorico(Historico *historico, Fila *fila, Vertice *origem)
+void insereFilaHistorico(Historico *historico, Fila *fila)
 {
 	historico->fila[historico->nFilas] = fila;
 	historico->nFilas++;
-
-	bool repetido = false;
-	for (int i = 0; i < historico->nVertices; i++)
-		if (historico->vertice[i]->id == origem->id)
-			repetido = true;
-
-	if (!repetido)
-	{
-		historico->vertice[historico->nVertices] = origem;
-		historico->nVertices++;
-	}
 }
 
-void percorreFila(Fila *fila, Vertice *origem, Vertice *destino, int nRota, Historico *historico)
+void excluiHistorico(Historico *historico)
 {
-	if (origem->nArestas > nRota)
-	{
-		Fila *novaFila = criaFila();
-		herdaFila(fila, novaFila);
-		insereHistorico(historico, novaFila, origem);
-		percorreFila(novaFila, origem, destino, nRota + 1, historico);
-	}
+	for (int i = 0; i < historico->nFilas; i++)
+		excluiFila(historico->fila[i]);
 
-	while (origem != NULL && origem->id != destino->id)
-	{
-		Rota *rota = criaRota(origem, origem->aresta[nRota]->vertice, origem->aresta[nRota]->peso);
-		insereFila(fila, rota);
-		percorreFila(fila, origem->aresta[0]->vertice, destino, 0, historico);
-		origem = origem->aresta[nRota]->vertice;
-	}
+	free(historico);
 }
-// void exibirRota(Vertice *rota)
-// {
-// 	Vertice *inicio = rota;
-// 	printf("\n");
-// 	if (inicio->aresta == NULL)
-// 		printf("Nenhuma aresta foi encontrado :(\n");
-// 	else
-// 		do
-// 		{
-// 			printf("De %d percorre %c ate %d\n", inicio->id, inicio->aresta->peso, inicio->aresta->vertice->id);
-// 			inicio = inicio->aresta->vertice;
-// 		} while (inicio->aresta != NULL && inicio->aresta->vertice->id != rota->id);
-// }
 
-// Fila
-Fila *criaFila()
+// Utils
+int charParaInt(char c)
 {
-	Fila *fila = (Fila *)malloc(sizeof(Fila));
-	fila->chegou = false;
-	fila->peso = 0;
-	fila->rota = NULL;
-	fila->historico = NULL;
+	return ((int)c) - ((int)'0');
+}
+
+// Servicos
+void encontraMenorCaminho(Grafo *grafo, int inicio, int fim)
+{
+	Vertice *origem = encontraVertice(grafo, inicio);
+	Vertice *destino = encontraVertice(grafo, fim);
+
+	if (origem != NULL && destino != NULL)
+		if (origem->id == destino->id)
+			printf("\nVoce ja esta no vertice desejado.\n");
+		else
+		{
+			Fila *fila = criaFila();
+			Historico *historico = criaHistorico(origem, destino);
+			insereFilaHistorico(historico, fila);
+			percorreFila(fila, origem, 0, historico);
+
+			Fila *melhor = melhorFila(historico);
+
+			if (melhor != NULL)
+			{
+				printf("\n      ### Peso Total: %d ###\n", melhor->peso);
+				for (int i = 0; i < melhor->nRotas; i++)
+				{
+					Rota *rota = melhor->rota[i];
+					printf("-- Percorra de %d por %d unidades ate %d\n", rota->de->id, rota->peso, rota->para->id);
+				}
+			}
+			else
+				printf("\nNenhum caminho valido foi encontrado;\n");
+
+			excluiHistorico(historico);
+		}
 }
