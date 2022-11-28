@@ -218,13 +218,13 @@ Aresta *criaAresta(int peso, Vertice *vertice)
 
 void insereAresta(Vertice *origem, Vertice *destino, int peso)
 {
+	if (origem->id == destino->id || peso <= 0)
+		return;
+
 	Aresta *aresta = criaAresta(peso, destino);
-	if (origem->id != destino->id && peso > 0)
-	{
-		origem->aresta[origem->nArestas] = aresta;
-		origem->nArestas++;
-		printf("Aresta adicionada de %d ate %d\n", origem->id, destino->id);
-	}
+	origem->aresta[origem->nArestas] = aresta;
+	origem->nArestas++;
+	printf("Aresta adicionada de %d ate %d\n", origem->id, destino->id);
 }
 
 // Grafo
@@ -238,18 +238,13 @@ Grafo *criaGrafo()
 
 void insereGrafo(Grafo *grafo, Vertice *vertice)
 {
-	bool repetido = false;
-
 	for (int i = 0; i < grafo->tamanho; i++)
 		if (grafo->vertice[i]->id == vertice->id)
-			repetido = true;
+			return;
 
-	if (!repetido)
-	{
-		grafo->vertice[grafo->tamanho] = vertice;
-		grafo->tamanho++;
-		printf("Vertice: %d adicionado a grafo | %d\n", vertice->id, grafo->tamanho);
-	}
+	grafo->vertice[grafo->tamanho] = vertice;
+	grafo->tamanho++;
+	printf("Vertice: %d adicionado ao grafo | %d\n", vertice->id, grafo->tamanho);
 }
 
 void excluiGrafo(Grafo *grafo)
@@ -290,8 +285,6 @@ Fila *criaFilaHerdeira(Fila *pai)
 
 	for (int i = 0; i < pai->nRotas; i++)
 		filha->rota[i] = pai->rota[i];
-	
-	// filha->rota = pai->rota;
 
 	return filha;
 }
@@ -348,7 +341,7 @@ Fila *melhorFila(Historico *historico)
 void excluiFila(Fila *fila)
 {
 	// for (int i = 0; i < fila->nRotas; i++)
-	// 	free(fila->rota[i]);
+	// 		free(fila->rota[i]);
 
 	free(fila);
 }
