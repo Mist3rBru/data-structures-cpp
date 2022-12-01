@@ -17,6 +17,7 @@ typedef struct Peso
 typedef struct Vertice
 {
 	int id;
+	string nome;
 	int nArestas;
 	struct Aresta **aresta;
 } Vertice;
@@ -68,7 +69,8 @@ void zeraPeso(Peso *peso);
 Vertice *criaVertice(int id);
 Vertice *encontraVertice(Grafo *grafo, int id);
 Vertice *encontraOuCriaVertice(Grafo *grafo, int id);
-void insereVertice(Grafo *grafo, int id, string linha);
+void insereVertice(Grafo *grafo, int linha, string pesos, string vertice);
+
 void excluiVertice(Vertice *vertice);
 
 // Aresta
@@ -139,26 +141,27 @@ void exibirMenu(Grafo *grafo)
 void lerArquivo(Grafo *grafo)
 {
 	int i = 0;
-	string linha;
-	ifstream arquivo;
-	arquivo.open("dados.txt", ios::in);
-
-	if (arquivo.is_open())
+	string pesos, vertice;
+	ifstream aPesos, aVertices;
+	aPesos.open("pesos.txt", ios::in);
+	aVertices.open("vertices.txt", ios::in);
+	if (aPesos.is_open() && aVertices.is_open())
 	{
-		printf("Lendo Arquivo ...\n");
-		while (getline(arquivo, linha))
+		printf("Lendo Grafo...\n");
+		while (getline(aVertices, vertice) && getline(aPesos, pesos))
 		{
-			cout << "\nLinha " << i << ": " << linha << endl;
-			insereVertice(grafo, i, linha);
+			cout << "\nLinha " << i << ": " << pesos << endl;
+			insereVertice(grafo, i, pesos, vertice);
 			i++;
 		}
-		arquivo.close();
-		printf("\nArquivo lido com sucesso. \n");
+		aPesos.close();
+		aVertices.close();
+		printf("\nGrafo lido com sucesso. \n");
 		printf("\n----------------------------------\n");
 	}
 	else
 	{
-		printf("Arquivo não encontrado :( \n");
+		printf("Grafo não encontrado :( \n");
 		exit(1);
 	}
 }
@@ -188,8 +191,9 @@ void zeraPeso(Peso *peso)
 // Vertice
 Vertice *criaVertice(int id)
 {
-	Vertice *vertice = (Vertice *)malloc(sizeof(Vertice));
+	Vertice *vertice = new Vertice;
 	vertice->id = id;
+	vertice->nome = "";
 	vertice->aresta = (Aresta **)malloc(MAX_GRAPH_SIZE * sizeof(Aresta *));
 	vertice->nArestas = 0;
 	printf("Vertice: %d criado\n", id);
@@ -222,26 +226,27 @@ Vertice *encontraOuCriaVertice(Grafo *grafo, int id)
 	return vertice;
 }
 
-void insereVertice(Grafo *grafo, int id, string linha)
+void insereVertice(Grafo *grafo, int linha, string pesos, string vertice)
 {
-	Vertice *vertice = encontraOuCriaVertice(grafo, id);
-	insereGrafo(grafo, vertice);
+	Vertice *inicio = encontraOuCriaVertice(grafo, linha);
+	insereGrafo(grafo, inicio);
+	inicio->nome = vertice;
 
 	Peso *peso = criaPeso();
 	int sobrecarga = 0;
-	for (int i = 0; i < linha.length() - 1; i++)
+	for (int i = 0; i <= pesos.length(); i++)
 	{
-		if (linha[i] == ' ')
+		if (pesos[i] == ' ' || pesos[i] == '\0')
 		{
 			int id = floor((i - sobrecarga) / 2);
 			Vertice *fim = encontraOuCriaVertice(grafo, id);
-			insereAresta(vertice, fim, charParaInt(peso->valor));
+			insereAresta(inicio, fim, charParaInt(peso->valor));
 			insereGrafo(grafo, fim);
 			zeraPeso(peso);
 		}
-		else if (linha[i] != '\0')
+		else
 		{
-			inserePeso(peso, linha[i]);
+			inserePeso(peso, pesos[i]);
 			if (peso->nValor >= 2)
 				sobrecarga++;
 		}
@@ -381,9 +386,6 @@ Fila *melhorFila(Historico *historico)
 
 void excluiFila(Fila *fila)
 {
-	// for (int i = 0; i < fila->nRotas; i++)
-	// 		free(fila->rota[i]);
-
 	free(fila);
 }
 
@@ -438,11 +440,11 @@ void encontraMenorCaminho(Grafo *grafo, int inicio, int fim)
 
 			if (melhor != NULL)
 			{
-				printf("\n      ### Peso Total: %d ###\n", melhor->peso);
+				printf("\n           ### Distância Total: %dkm ###\n", melhor->peso);
 				for (int i = 0; i < melhor->nRotas; i++)
 				{
 					Rota *rota = melhor->rota[i];
-					printf("-- Percorra de %d por %d unidades ate %d\n", rota->de->id, rota->peso, rota->para->id);
+					cout << "-- Percorra " << rota->peso << "km de " << rota->de->nome << " até " << rota->para->nome << endl;
 				}
 			}
 			else
