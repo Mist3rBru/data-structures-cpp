@@ -2,9 +2,17 @@
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
+#include <string.h>
+#include <cmath>
 
 using namespace std;
 int MAX_GRAPH_SIZE = 100;
+
+typedef struct Peso
+{
+	int nValor;
+	char valor[10];
+} Peso;
 
 typedef struct Vertice
 {
@@ -51,11 +59,16 @@ typedef struct Historico
 // Arquivo
 void lerArquivo(Grafo *grafo);
 
+// Peso
+Peso *criaPeso();
+void inserePeso(Peso *peso, int valor);
+void zeraPeso(Peso *peso);
+
 // Vertice
 Vertice *criaVertice(int id);
 Vertice *encontraVertice(Grafo *grafo, int id);
 Vertice *encontraOuCriaVertice(Grafo *grafo, int id);
-void insereVertice(Grafo *grafo, int id, string arestas);
+void insereVertice(Grafo *grafo, int id, string linha);
 void excluiVertice(Vertice *vertice);
 
 // Aresta
@@ -84,7 +97,7 @@ void insereFilaHistorico(Historico *historico, Fila *fila);
 void excluiHistorico(Historico *historico);
 
 // Utils
-int charParaInt(char c);
+int charParaInt(char *c);
 
 // Servicos
 void encontraMenorCaminho(Grafo *grafo, int inicio, int fim);
@@ -150,6 +163,29 @@ void lerArquivo(Grafo *grafo)
 	}
 }
 
+// Peso
+Peso *criaPeso()
+{
+	Peso *peso = (Peso *)malloc(sizeof(Peso));
+	peso->nValor = 0;
+	peso->valor[0] = '\0';
+	return peso;
+}
+
+void inserePeso(Peso *peso, char valor)
+{
+	peso->valor[peso->nValor] = valor;
+	peso->nValor++;
+}
+
+void zeraPeso(Peso *peso)
+{
+	for (int i = 0; i < peso->nValor; i++)
+		peso->valor[i] = '\0';
+	peso->nValor = 0;
+}
+
+// Vertice
 Vertice *criaVertice(int id)
 {
 	Vertice *vertice = (Vertice *)malloc(sizeof(Vertice));
@@ -168,7 +204,6 @@ void excluiVertice(Vertice *vertice)
 	free(vertice);
 }
 
-// Vertice
 Vertice *encontraVertice(Grafo *grafo, int id)
 {
 	for (int i = 0; i < grafo->tamanho; i++)
@@ -187,23 +222,29 @@ Vertice *encontraOuCriaVertice(Grafo *grafo, int id)
 	return vertice;
 }
 
-void insereVertice(Grafo *grafo, int id, string arestas)
+void insereVertice(Grafo *grafo, int id, string linha)
 {
 	Vertice *vertice = encontraOuCriaVertice(grafo, id);
 	insereGrafo(grafo, vertice);
 
-	int i = 0;
-	char peso = arestas[0];
-	while (peso != '\0')
+	Peso *peso = criaPeso();
+	int sobrecarga = 0;
+	for (int i = 0; i < linha.length() - 1; i++)
 	{
-		if (peso != ' ')
+		if (linha[i] == ' ')
 		{
-			int id = i / 2;
+			int id = floor((i - sobrecarga) / 2);
 			Vertice *fim = encontraOuCriaVertice(grafo, id);
+			insereAresta(vertice, fim, charParaInt(peso->valor));
 			insereGrafo(grafo, fim);
-			insereAresta(vertice, fim, charParaInt(peso));
+			zeraPeso(peso);
 		}
-		peso = arestas[++i];
+		else if (linha[i] != '\0')
+		{
+			inserePeso(peso, linha[i]);
+			if (peso->nValor >= 2)
+				sobrecarga++;
+		}
 	}
 }
 
@@ -372,9 +413,9 @@ void excluiHistorico(Historico *historico)
 }
 
 // Utils
-int charParaInt(char c)
+int charParaInt(char *c)
 {
-	return ((int)c) - ((int)'0');
+	return atoi(c);
 }
 
 // Servicos
