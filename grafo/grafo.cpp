@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <string.h>
-#include <cmath>
 
 using namespace std;
 int MAX_GRAPH_SIZE = 100;
@@ -69,6 +68,7 @@ void zeraPeso(Peso *peso);
 Vertice *criaVertice(int id);
 Vertice *encontraVertice(Grafo *grafo, int id);
 Vertice *encontraOuCriaVertice(Grafo *grafo, int id);
+Vertice *encontraVerticePorNome(Grafo *grafo, string nome);
 void insereVertice(Grafo *grafo, int linha, string pesos, string vertice);
 
 void excluiVertice(Vertice *vertice);
@@ -102,39 +102,24 @@ void excluiHistorico(Historico *historico);
 int charParaInt(char *c);
 
 // Servicos
-void encontraMenorCaminho(Grafo *grafo, int inicio, int fim);
-
-// Menu
-void exibirMenu(Grafo *grafo);
+void encontraMenorCaminho(Grafo *grafo, string inicio, string fim);
 
 int main(void)
 {
 	Grafo *grafo = criaGrafo();
+	string inicio, fim;
 
 	lerArquivo(grafo);
-	exibirMenu(grafo);
+
+	cout << "\nInsira o nome do vertice de origem: ";
+	getline(cin, inicio);
+	cout << "Insira o nome do vertice de destino: ";
+	getline(cin, fim);
+
+	encontraMenorCaminho(grafo, inicio, fim);
 
 	excluiGrafo(grafo);
 	return 0;
-}
-
-void exibirMenu(Grafo *grafo)
-{
-	int inicio, fim, opcao;
-	do
-	{
-		printf("\nInsira o vertice de origem: ");
-		scanf("%i", &inicio);
-		printf("Insira o vertice de destino: ");
-		scanf("%i", &fim);
-
-		encontraMenorCaminho(grafo, inicio, fim);
-
-		printf("\nInsira '1' para continuar;\n");
-		printf("Insira '0' para encerrar;\n");
-		printf("Digite uma opcao: ");
-		scanf("%i", &opcao);
-	} while (opcao != 0);
 }
 
 // Arquivo
@@ -147,7 +132,7 @@ void lerArquivo(Grafo *grafo)
 	aVertices.open("vertices.txt", ios::in);
 	if (aPesos.is_open() && aVertices.is_open())
 	{
-		printf("Lendo Grafo...\n");
+		cout << "Lendo Grafo..." << endl;
 		while (getline(aVertices, vertice) && getline(aPesos, pesos))
 		{
 			cout << "\nLinha " << i << ": " << pesos << endl;
@@ -156,12 +141,13 @@ void lerArquivo(Grafo *grafo)
 		}
 		aPesos.close();
 		aVertices.close();
-		printf("\nGrafo lido com sucesso. \n");
-		printf("\n----------------------------------\n");
+		cout << "\nGrafo lido com sucesso.\n";
+		cout << "\n----------------------------------\n";
 	}
 	else
 	{
-		printf("Grafo não encontrado :( \n");
+		cout << "\nGrafo não encontrado :( \n"
+				 << endl;
 		exit(1);
 	}
 }
@@ -196,7 +182,7 @@ Vertice *criaVertice(int id)
 	vertice->nome = "";
 	vertice->aresta = (Aresta **)malloc(MAX_GRAPH_SIZE * sizeof(Aresta *));
 	vertice->nArestas = 0;
-	printf("Vertice: %d criado\n", id);
+	cout << "Vertice: " << id << " criado" << endl;
 	return vertice;
 }
 
@@ -214,7 +200,7 @@ Vertice *encontraVertice(Grafo *grafo, int id)
 		if (grafo->vertice[i]->id == id)
 			return grafo->vertice[i];
 
-	printf("Vertice: %d nao encontrado\n", id);
+	cout << "Vertice: " << id << " nao encontrado" << endl;
 	return NULL;
 }
 
@@ -224,6 +210,16 @@ Vertice *encontraOuCriaVertice(Grafo *grafo, int id)
 	if (vertice == NULL)
 		vertice = criaVertice(id);
 	return vertice;
+}
+
+Vertice *encontraVerticePorNome(Grafo *grafo, string nome)
+{
+	for (int i = 0; i < grafo->tamanho; i++)
+		if (grafo->vertice[i]->nome == nome)
+			return grafo->vertice[i];
+
+	cout << "\nVertice: " << nome << " nao encontrado" << endl;
+	return NULL;
 }
 
 void insereVertice(Grafo *grafo, int linha, string pesos, string vertice)
@@ -238,7 +234,7 @@ void insereVertice(Grafo *grafo, int linha, string pesos, string vertice)
 	{
 		if (pesos[i] == ' ' || pesos[i] == '\0')
 		{
-			int id = floor((i - sobrecarga) / 2);
+			int id = (i - sobrecarga) / 2;
 			Vertice *fim = encontraOuCriaVertice(grafo, id);
 			insereAresta(inicio, fim, charParaInt(peso->valor));
 			insereGrafo(grafo, fim);
@@ -270,7 +266,7 @@ void insereAresta(Vertice *origem, Vertice *destino, int peso)
 	Aresta *aresta = criaAresta(peso, destino);
 	origem->aresta[origem->nArestas] = aresta;
 	origem->nArestas++;
-	printf("Aresta adicionada de %d ate %d\n", origem->id, destino->id);
+	cout << "Aresta adicionada de " << origem->id << " ate " << destino->id << endl;
 }
 
 // Grafo
@@ -290,7 +286,7 @@ void insereGrafo(Grafo *grafo, Vertice *vertice)
 
 	grafo->vertice[grafo->tamanho] = vertice;
 	grafo->tamanho++;
-	printf("Vertice: %d adicionado ao grafo | %d\n", vertice->id, grafo->tamanho);
+	cout << "Vertice: " << vertice->id << " adicionado ao grafo | " << grafo->tamanho << endl;
 }
 
 void excluiGrafo(Grafo *grafo)
@@ -421,14 +417,14 @@ int charParaInt(char *c)
 }
 
 // Servicos
-void encontraMenorCaminho(Grafo *grafo, int inicio, int fim)
+void encontraMenorCaminho(Grafo *grafo, string inicio, string fim)
 {
-	Vertice *origem = encontraVertice(grafo, inicio);
-	Vertice *destino = encontraVertice(grafo, fim);
+	Vertice *origem = encontraVerticePorNome(grafo, inicio);
+	Vertice *destino = encontraVerticePorNome(grafo, fim);
 
 	if (origem != NULL && destino != NULL)
 		if (origem->id == destino->id)
-			printf("\nVoce ja esta no vertice desejado.\n");
+			cout << "\nVoce ja esta no vertice desejado.\n";
 		else
 		{
 			Fila *fila = criaFila();
@@ -440,7 +436,8 @@ void encontraMenorCaminho(Grafo *grafo, int inicio, int fim)
 
 			if (melhor != NULL)
 			{
-				printf("\n           ### Distância Total: %dkm ###\n", melhor->peso);
+				cout << "\n          ### Distância Total: " << melhor->peso << "km ###\n";
+				melhor->peso;
 				for (int i = 0; i < melhor->nRotas; i++)
 				{
 					Rota *rota = melhor->rota[i];
@@ -448,7 +445,7 @@ void encontraMenorCaminho(Grafo *grafo, int inicio, int fim)
 				}
 			}
 			else
-				printf("\nNenhum caminho valido foi encontrado;\n");
+				cout << "\nNenhum caminho valido foi encontrado;\n";
 
 			excluiHistorico(historico);
 		}
